@@ -8,20 +8,26 @@
 | Python 3.10+ ו-pip | SETUP_REQUIRED | הרצת הסקריפטים | טרם אומת על המחשב | להתקין מ-python.org ולסמן "Add to PATH" |
 | ספריות (openpyxl, playwright, tzdata) ו-Chromium | SETUP_REQUIRED | דפדפן אוטומטי וכתיבה ל-Excel | נבדק בסביבת הבנייה (Linux) | `tools\setup.ps1` |
 | Claude Code CLI (`claude`) | SETUP_REQUIRED | הרצה לא מפוקחת (`claude -p`) | טרם אומת | לוודא ש-`claude --version` עובד ב-PowerShell |
-| WhatsApp דרך CallMeBot | SETUP_REQUIRED | התראה בשפל מחיר | טרם הוגדר | ראה הוראות למטה |
+| WhatsApp דרך WhatsApp Web (דפדפן מקומי) | SETUP_REQUIRED | התראה בשפל מחיר | טרם הוגדר | ראה הוראות למטה |
 | Windows Task Scheduler: 3 משימות | READY_TO_ACTIVATE | בדיקות 00:00, 12:00 ו-20:00 UTC | לא רשומות | רק אחרי אישור בשיחת "אני רוצה להתחיל" |
 | Google Flights / Skyscanner / Kayak | OPTIONAL (לפי זמינות) | מקורות מחיר | ראה RUN_LOG.md | אין. אתר חסום נרשם בהערות |
 
-## הגדרת CallMeBot (פעם אחת, כ-2 דקות)
-1. שמור באנשי הקשר בטלפון את המספר של CallMeBot. **המספר העדכני מופיע ב-https://www.callmebot.com/blog/free-api-whatsapp-messages/**, כי הוא משתנה מדי פעם.
-2. שלח לאיש הקשר הזה ב-WhatsApp את ההודעה: `I allow callmebot to send me messages`
-3. תקבל בחזרה הודעה עם **apikey**.
-4. במחשב, בתיקיית הסוכן, הרץ `notepad .env` ומלא:
-   - `CALLMEBOT_PHONE=972...` (המספר שלך בפורמט בינלאומי, בלי + ובלי 0 בהתחלה)
-   - `CALLMEBOT_APIKEY=...`
-5. בדוק עם `python tools/notify_whatsapp.py "בדיקה מצייד הטיסות"`. ההודעה אמורה להגיע לטלפון תוך דקה.
+## הגדרת WhatsApp Web (פעם אחת, כ-2 דקות, בלי מפתח API)
+הסוכן שולח את ההודעה דרך WhatsApp Web, בדפדפן Chromium שרץ ברקע במחשב שלך. ההודעה מגיעה לצ'אט "הודעה לעצמי" שלך ב-WhatsApp.
 
-**פרטיות:** הקובץ `.env` לא נכנס ל-git, והסוכן חסום מלקרוא אותו (`.claude/settings.json`). CallMeBot יכול לשלוח רק למספר שרשום אצלו, כלומר רק אליך.
+1. במחשב, בתיקיית הסוכן, הרץ `notepad .env` ומלא את המספר שלך:
+   - `WHATSAPP_PHONE=972...` (פורמט בינלאומי, בלי + ובלי 0 בהתחלה. למשל 050-1234567 נכתב `972501234567`)
+2. הרץ `python tools/notify_whatsapp.py --login`. ייפתח חלון דפדפן עם קוד QR.
+3. בטלפון: WhatsApp ← הגדרות ← **מכשירים מקושרים** ← **קישור מכשיר**, וסרוק את הקוד. החלון ייסגר לבד אחרי החיבור.
+4. בדוק עם `python tools/notify_whatsapp.py "בדיקה מצייד הטיסות"`. ההודעה אמורה להופיע בצ'אט עם עצמך תוך דקה.
+
+**חשוב לדעת:**
+- ההתחברות נשמרת בתיקייה `.whatsapp-session/`. מי שמעתיק את התיקייה הזאת יכול לקרוא את ה-WhatsApp שלך, ולכן היא לא נכנסת ל-git, והסוכן חסום מלקרוא אותה.
+- אם הטלפון לא מחובר לאינטרנט כ-14 יום, WhatsApp מנתק את המכשיר המקושר. אז ההודעה תיכשל עם `SETUP_REQUIRED`, וצריך להריץ שוב `--login`.
+- אפשר לנתק בכל רגע מהטלפון: מכשירים מקושרים ← Chrome ← התנתקות.
+- אם שליחה ברקע לא עובדת, אפשר לבדוק עם חלון גלוי: `python tools/notify_whatsapp.py "בדיקה" --headed`.
+
+**פרטיות:** הקובץ `.env` לא נכנס ל-git, והסוכן חסום מלקרוא אותו (`.claude/settings.json`). הסקריפט שולח רק למספר שב-`.env`, כלומר רק אליך.
 
 ## פעולות שתמיד דורשות אישור נפרד
 - רישום, שינוי או מחיקה של משימות מתוזמנות

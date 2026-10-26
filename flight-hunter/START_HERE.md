@@ -35,12 +35,12 @@
 [✓/!] הוראות ופרופיל
 [✓/!] מקורות וקבצים (Google Flights, Skyscanner, Kayak)
 [✓/!] סקריפטים מקומיים (Python, Playwright, openpyxl)
-[✓/!] WhatsApp דרך CallMeBot
+[✓/!] WhatsApp דרך WhatsApp Web (בלי מפתח API)
 [✓/!] משימות ב-Windows Task Scheduler
 
 מה יקרה לאחר האישור:
 1. התקנת הספריות החסרות (tools\setup.ps1)
-2. הגדרת CallMeBot: אתה ממלא מספר ומפתח ב-.env
+2. הגדרת WhatsApp: אתה ממלא את המספר שלך ב-.env וסורק קוד QR מהטלפון
 3. בדיקה אחת מלאה: שורה ראשונה בטבלה והודעת WhatsApp לבדיקה
 4. רישום 3 המשימות היומיות ואימות מועד הריצה הבאה
 
