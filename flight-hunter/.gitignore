@@ -1,0 +1,8 @@
+.env
+flights.xlsx
+~$flights.xlsx
+pending_rows.jsonl
+.run.lock
+logs/*
+!logs/.gitkeep
+__pycache__/

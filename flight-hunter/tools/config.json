@@ -1,0 +1,41 @@
+{
+  "trip": {
+    "origin": "TLV",
+    "destination": "HER",
+    "depart_date": "2027-08-15",
+    "return_date": "2027-08-21",
+    "passengers": [
+      {"type": "adult", "age": 61},
+      {"type": "child", "age": 9}
+    ],
+    "cabin": "economy",
+    "nonstop_only": true,
+    "checked_bags_total": 1,
+    "checked_bag_max_kg": 20,
+    "currency": "ILS",
+    "flexible_dates": false
+  },
+  "tracking_ends": "2027-08-15",
+  "timezone_display": "Asia/Jerusalem",
+  "excel_file": "flights.xlsx",
+  "sources": [
+    {
+      "name": "Google Flights",
+      "url": "https://www.google.com/travel/flights?q=Flights%20to%20HER%20from%20TLV%20on%202027-08-15%20through%202027-08-21%20nonstop%201%20adult%201%20child%20economy&curr=ILS&hl=en"
+    },
+    {
+      "name": "Skyscanner",
+      "url": "https://www.skyscanner.co.il/transport/flights/tlv/her/270815/270821/?adultsv2=1&childrenv2=9&cabinclass=economy&stops=!oneStop,!twoPlusStops&currency=ILS"
+    },
+    {
+      "name": "Kayak",
+      "url": "https://www.kayak.co.il/flights/TLV-HER/2027-08-15/2027-08-21/1adults/children-11?sort=price_a&fs=stops=0"
+    }
+  ],
+  "airline_sites": [
+    {"name": "El Al", "url": "https://www.elal.com/"},
+    {"name": "Israir", "url": "https://www.israir.co.il/"},
+    {"name": "Arkia", "url": "https://www.arkia.co.il/"},
+    {"name": "Bluebird Airways", "url": "https://www.bluebirdair.com/"}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python tools/fetch_page.py:*)",
+      "Bash(python tools/flights_log.py:*)",
+      "Bash(python tools/notify_whatsapp.py:*)",
+      "Edit(RUN_LOG.md)",
+      "WebSearch",
+      "WebFetch"
+    ],
+    "deny": [
+      "Read(.env)"
+    ]
+  }
+}
