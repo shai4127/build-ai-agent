@@ -1,4 +1,5 @@
 .env
+.whatsapp-session/
 flights.xlsx
 ~$flights.xlsx
 pending_rows.jsonl
