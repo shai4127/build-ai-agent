@@ -5,6 +5,7 @@ Commands:
     python tools/flights_log.py append --json "<json>"      (or pipe JSON on stdin)
     python tools/flights_log.py status
     python tools/flights_log.py migrate
+    python tools/flights_log.py repair-from-backup <flights_backup_....xlsx>
     python tools/flights_log.py daily-summary [--force] [--text] [--mark-sent]
     python tools/flights_log.py sources-health [--last 48]
 
@@ -35,6 +36,7 @@ from zoneinfo import ZoneInfo
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import column_index_from_string, get_column_letter
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = json.loads((ROOT / "tools" / "config.json").read_text(encoding="utf-8"))
@@ -140,10 +142,28 @@ def _match_header(header) -> str | None:
     return None
 
 
+REF = re.compile(r"(?<![A-Za-z0-9_!'.])(\$?)([A-Z]{1,3})(\$?)([0-9]+)(?![0-9(])")
+COLREF = re.compile(r"(?<![A-Za-z0-9_!'.])(\$?)([A-Z]{1,3}):(\$?)([A-Z]{1,3})(?![0-9A-Za-z(])")
+
+
+def _translate_formula(formula: str, col_map: dict[int, int]) -> str:
+    """Re-point same-sheet cell references after columns moved (old column number -> new)."""
+    def col(letters: str) -> str:
+        old = column_index_from_string(letters)
+        return get_column_letter(col_map.get(old, old))
+
+    parts = re.split(r'("[^"]*")', formula)  # leave text inside quotes alone
+    for i in range(0, len(parts), 2):
+        parts[i] = COLREF.sub(lambda m: f"{m[1]}{col(m[2])}:{m[3]}{col(m[4])}", parts[i])
+        parts[i] = REF.sub(lambda m: f"{m[1]}{col(m[2])}{m[3]}{m[4]}", parts[i])
+    return "".join(parts)
+
+
 def _upgrade(path: Path) -> dict:
     """Bring the table to the current column layout, matching columns by name.
 
-    Columns this script does not know (e.g. added by hand) are kept, after the known columns.
+    Columns this script does not know (e.g. added by hand) are kept, after the known columns,
+    and every row stays on the same row number. Formulas are re-pointed to the moved columns.
     Other sheets in the workbook are left untouched. A backup copy is saved first.
     """
     wb = load_workbook(path)
@@ -173,8 +193,24 @@ def _upgrade(path: Path) -> dict:
         cell.fill = PatternFill("solid", fgColor="1F4E78")
         ws.column_dimensions[cell.column_letter].width = 18
 
+    # Old column number -> new column number, for re-pointing formulas.
+    col_map = {}
+    for i, target in mapping.items():
+        col_map[i + 1] = layout.index(target or old_headers[i]) + 1
+
+    def carry(value):
+        if isinstance(value, str) and value.startswith("="):
+            return _translate_formula(value, col_map)
+        return value
+
+    # Header cells of extra columns may hold values formulas use (e.g. a rate in Q1).
+    for i, target in mapping.items():
+        if target is None:
+            ws.cell(row=1, column=col_map[i + 1], value=carry(old_headers[i]))
+
     moved = 0
     for old_row in old_ws.iter_rows(min_row=2):
+        row_idx = old_row[0].row
         values, link = {}, None
         for i, target in mapping.items():
             if i >= len(old_row):
@@ -182,18 +218,22 @@ def _upgrade(path: Path) -> dict:
             cell = old_row[i]
             name = target or old_headers[i]
             if values.get(name) in (None, ""):
-                values[name] = cell.value
+                values[name] = carry(cell.value)
             if target == H_LINK and cell.hyperlink:
                 link = cell.hyperlink.target
         if all(v in (None, "") for v in values.values()):
             continue
-        if values.get(H_LINK) and not link:
-            link = values[H_LINK]
-        if not values.get(H_GMT):
-            values[H_GMT] = _gmt_from_israel(values.get(H_DATE), values.get(H_TIME))
-        ws.append([values.get(name) for name in layout])
-        _format_row(ws, ws.max_row, link)
-        moved += 1
+        if values.get(H_DATE) not in (None, ""):
+            if values.get(H_LINK) and not link:
+                link = values[H_LINK]
+            if not values.get(H_GMT):
+                values[H_GMT] = _gmt_from_israel(values.get(H_DATE), values.get(H_TIME))
+            moved += 1
+        for name, value in values.items():
+            if value not in (None, ""):
+                ws.cell(row=row_idx, column=layout.index(name) + 1, value=value)
+        if values.get(H_DATE) not in (None, ""):
+            _format_row(ws, row_idx, link)
 
     wb.remove(old_ws)
     ws.title = SHEET
@@ -225,12 +265,21 @@ def _num(value):
 
 
 def _rows(ws) -> list[dict]:
+    """The checks in the table: rows with a check date. Rows that only hold the owner's own
+    formulas or notes (e.g. a formula dragged down ahead of future rows) are not checks."""
     rows = []
-    for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-        if all(v in (None, "") for v in row):
+    for idx, row in enumerate(ws.iter_rows(min_row=2, max_col=len(HEADERS), values_only=True), start=2):
+        if row[COL[H_DATE] - 1] in (None, ""):
             continue
         rows.append({"row": idx, **{name: row[COL[name] - 1] for name in HEADERS}})
     return rows
+
+
+def _next_row(ws) -> int:
+    """First row after the last check. Cells the owner prepared there (formulas in their own
+    columns) are kept, so a dragged-down formula fills in as checks arrive."""
+    rows = _rows(ws)
+    return rows[-1]["row"] + 1 if rows else 2
 
 
 def _priced_totals(ws) -> list[float]:
@@ -292,8 +341,9 @@ def _write_row(ws, data: dict, stamp: datetime) -> dict:
         H_LINK: data.get("link") or "",
         H_NOTES: notes,
     }
-    ws.append([values[name] for name in HEADERS])
-    row_idx = ws.max_row
+    row_idx = _next_row(ws)
+    for name in HEADERS:
+        ws.cell(row=row_idx, column=COL[name], value=values[name])
     _format_row(ws, row_idx, data.get("link"))
 
     return {
@@ -315,6 +365,20 @@ def cmd_init() -> dict:
         return {"created": False, "file": str(XLSX), **_upgrade(XLSX)}
     _new_workbook().save(XLSX)
     return {"created": True, "file": str(XLSX)}
+
+
+def cmd_repair(backup_name: str) -> dict:
+    """Redo the column upgrade from a pre-upgrade backup (the current file is kept aside first)."""
+    backup = ROOT / backup_name
+    if not backup.exists():
+        return {"repaired": False, "error": f"{backup_name} not found"}
+    aside = None
+    if XLSX.exists():
+        aside = XLSX.with_name(f"flights_before_repair_{datetime.now(TZ).strftime('%Y%m%d_%H%M%S')}.xlsx")
+        shutil.copy2(XLSX, aside)
+    shutil.copy2(backup, XLSX)
+    result = _upgrade(XLSX)
+    return {"repaired": True, "from": backup_name, "current_file_kept_as": aside.name if aside else None, **result}
 
 
 def cmd_migrate() -> dict:
@@ -469,6 +533,8 @@ def main() -> int:
     sub.add_parser("init")
     sub.add_parser("status")
     sub.add_parser("migrate")
+    rp = sub.add_parser("repair-from-backup")
+    rp.add_argument("backup", help="file name of a flights_backup_*.xlsx in the agent folder")
     ap = sub.add_parser("append")
     ap.add_argument("--json", help="row data as JSON; read from stdin when omitted")
     sp = sub.add_parser("daily-summary")
@@ -485,6 +551,8 @@ def main() -> int:
         out = cmd_status()
     elif args.cmd == "migrate":
         out = cmd_migrate()
+    elif args.cmd == "repair-from-backup":
+        out = cmd_repair(args.backup)
     elif args.cmd == "daily-summary":
         out = cmd_daily_summary(args.force, args.mark_sent)
         if args.text:
