@@ -11,7 +11,7 @@ if ((Get-Date).ToUniversalTime() -gt [datetime]'2027-08-15T23:59:59') {
     "Tracking period ended (15/08/2027). Nothing to do." | Out-File $Log -Encoding utf8
     exit 0
 }
-if ((Test-Path $Lock) -and ((Get-Item $Lock).LastWriteTime -gt (Get-Date).AddMinutes(-45))) {
+if ((Test-Path $Lock) -and ((Get-Item $Lock).LastWriteTime -gt (Get-Date).AddMinutes(-55))) {
     "Skipped: a previous run is still active." | Out-File $Log -Encoding utf8
     exit 0
 }

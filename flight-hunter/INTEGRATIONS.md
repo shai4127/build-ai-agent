@@ -9,8 +9,10 @@
 | ספריות (openpyxl, playwright, tzdata) ו-Chromium | SETUP_REQUIRED | דפדפן אוטומטי וכתיבה ל-Excel | נבדק בסביבת הבנייה (Linux) | `tools\setup.ps1` |
 | Claude Code CLI (`claude`) | SETUP_REQUIRED | הרצה לא מפוקחת (`claude -p`) | טרם אומת | לוודא ש-`claude --version` עובד ב-PowerShell |
 | WhatsApp דרך WhatsApp Web (דפדפן מקומי) | SETUP_REQUIRED | התראה בשפל מחיר | טרם הוגדר | ראה הוראות למטה |
-| Windows Task Scheduler: 3 משימות | READY_TO_ACTIVATE | בדיקות 00:00, 12:00 ו-20:00 UTC | לא רשומות | רק אחרי אישור בשיחת "אני רוצה להתחיל" |
-| Google Flights / Skyscanner / Kayak | OPTIONAL (לפי זמינות) | מקורות מחיר | ראה RUN_LOG.md | אין. אתר חסום נרשם בהערות |
+| Windows Task Scheduler: משימה שעתית `FlightHunter-Hourly` | READY_TO_ACTIVATE | בדיקה כל שעה עגולה (UTC), וסיכום בוקר אחרי 08:00 שעון ישראל | לא רשומה | רק אחרי אישור בשיחת "אני רוצה להתחיל". `register_tasks.ps1` מוחק את 3 המשימות הישנות |
+| Google Flights | OPTIONAL (לפי זמינות) | מקור מחיר יחיד | ראה RUN_LOG.md | אין. אתר חסום נרשם בהערות |
+| שער דולר: בנק ישראל (גיבוי Frankfurter/ECB) | SETUP_REQUIRED | עמודת "שער הדולר" | טרם אומת מהמחשב | אין. נבדק אוטומטית בכל שורה; אם לא זמין, העמודה נשארת ריקה |
+| Skyscanner, Kayak | UNAVAILABLE (הוסרו) | — | 05/11/2026 | הוסרו כי היו חסומים באופן קבוע |
 
 ## הגדרת WhatsApp Web (פעם אחת, כ-2 דקות, בלי מפתח API)
 הסוכן שולח את ההודעה דרך WhatsApp Web, בדפדפן Chromium שרץ ברקע במחשב שלך. ההודעה מגיעה לצ'אט "הודעה לעצמי" שלך ב-WhatsApp.

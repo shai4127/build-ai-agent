@@ -16,7 +16,9 @@
 
 ## מה אתה מספק
 - בכל בדיקה נוספת **שורה אחת** ל-`flights.xlsx` בלשונית "כל הבדיקות", עם ההצעה הזולה ביותר מכל המקורות או עם "לא נמצא".
-- **הודעת WhatsApp** נשלחת רק כשנמצא מחיר נמוך מכל מחיר קודם, או בפעם הראשונה שנמצא מחיר בכלל.
+- הבדיקה רצה **כל שעה, 24 פעמים ביממה**, בשעה עגולה לפי שעון גריניץ' (UTC).
+- **הודעת WhatsApp** נשלחת כשנמצא מחיר נמוך מכל מחיר קודם, או בפעם הראשונה שנמצא מחיר בכלל.
+- **סיכום בוקר ב-WhatsApp:** כל יום, אחרי הבדיקה של 08:00 שעון ישראל, נשלחים פרטי 3 המחירים הזולים ביותר מתוך 24 הבדיקות האחרונות.
 - הפירוט המלא נמצא ב-[OUTPUT_FORMAT.md](OUTPUT_FORMAT.md).
 
 ## קבצי העבודה
@@ -56,7 +58,8 @@
    - `python tools/flights_log.py status`
    - `python tools/notify_whatsapp.py --check`
    - קיום של `.env`
-   - `Get-ScheduledTask -TaskPath '\FlightHunter\'` (ב-PowerShell)
+   - `Get-ScheduledTask -TaskPath '\FlightHunter\'` (ב-PowerShell). המצב התקין הוא משימה אחת, `FlightHunter-Hourly`. אם רשומות עדיין 3 המשימות הישנות (`FlightHunter-0000UTC` וכו'), הצג את המשימה כ-`READY_TO_ACTIVATE` עם התזמון החדש (כל שעה).
+   - `python tools/flights_log.py sources-health`: אילו מקורות חסומים באופן קבוע. מקור פעיל שמסומן `always_blocked` מוסר מ-`sources` ב-`tools/config.json` (ומועבר ל-`removed_sources` עם סיבה ותאריך). כך ביקש הבעלים ב-05/11/2026. **חריג:** אם זה המקור האחרון שנשאר, לא מסירים. מדווחים לבעלים ומציעים מקור חלופי.
 
    אל תסמן ✓ לשום דבר שלא אומת בפועל.
 2. **המשימות המתוזמנות קודם לכול.** הצג את כרטיס המשימות לפי [START_HERE.md](START_HERE.md), עם הסטטוס האמיתי של כל משימה. שאל: **להפעיל עכשיו, לשנות את התזמון, או להשאיר ידני?**
@@ -66,7 +69,7 @@
    2. הדרך את הבעלים בהגדרת WhatsApp Web לפי [INTEGRATIONS.md](INTEGRATIONS.md): הבעלים ממלא את המספר שלו ב-`.env` בעצמו (`notepad .env`), ואתה לא קורא את הקובץ. אחר כך הבעלים מריץ `python tools/notify_whatsapp.py --login` וסורק את קוד ה-QR מהטלפון.
    3. הרץ ריצת בדיקה אחת לפי `automations/check-prices.md`.
    4. שלח הודעת WhatsApp אחת לבדיקה ובקש מהבעלים לאשר שהיא הגיעה.
-   5. הרץ `tools/register_tasks.ps1` ואמת עם `Get-ScheduledTask` שהמשימות נרשמו, וגם מה מועד הריצה הבאה.
+   5. הרץ `tools/register_tasks.ps1` (הוא מוחק את המשימות הישנות ורושם משימה שעתית אחת), ואמת עם `Get-ScheduledTask` שהמשימה נרשמה, וגם מה מועד הריצה הבאה.
 5. **סיכום.** הצג טבלת מצב (`ACTIVE` / `READY_TO_ACTIVATE` / `SETUP_REQUIRED` / `UNAVAILABLE`) ומועד ריצה הבאה כפי ש-Windows מדווח. עדכן את `INTEGRATIONS.md`.
 
 אם לא ניתן לרשום תזמון קבוע בסביבה הנוכחית, הסבר זאת והצע את ההגדרה הנכונה. לעולם אל תיצור לולאה זמנית בלי רשות.
@@ -74,7 +77,9 @@
 ## בקשות רגילות
 - **"תבדוק עכשיו"**: ריצה אחת לפי `automations/check-prices.md`.
 - **"מה המחיר?"**: הרץ `python tools/flights_log.py status` וענה מתוך הטבלה.
+- **"תשלח סיכום"**: `python tools/flights_log.py daily-summary --force --text | python tools/notify_whatsapp.py -`. **לא** מסמנים `--mark-sent`, כדי שסיכום הבוקר הרגיל עדיין יישלח.
+- **"אילו אתרים חסומים?"**: `python tools/flights_log.py sources-health`.
 - **"תעצור"**: הרץ `tools/unregister_tasks.ps1` אחרי אישור.
 
 ## סיום תקין של ריצה
-יש שורה חדשה בטבלה (או שורה בתור `pending_rows.jsonl` ואזהרה ביומן), יש שורה ב-`RUN_LOG.md`, ונשלחה הודעה רק אם התנאי התקיים.
+יש שורה חדשה בטבלה (או שורה בתור `pending_rows.jsonl` ואזהרה ביומן), יש שורה ב-`RUN_LOG.md`, ונשלחה הודעה רק אם התנאי התקיים. בבדיקה הראשונה מ-08:00 שעון ישראל ואילך, נשלח גם סיכום הבוקר וסומן `--mark-sent`.

@@ -4,6 +4,7 @@ Usage:
     python tools/notify_whatsapp.py --login        (one time: opens a browser window, scan the QR code)
     python tools/notify_whatsapp.py --check        (verify phone + logged-in session, sends nothing)
     python tools/notify_whatsapp.py "message text" [--headed]
+    <command> | python tools/notify_whatsapp.py -   (message text from stdin, for multi-line messages)
 
 No API key and no third-party service. The browser profile in .whatsapp-session/
 keeps the WhatsApp Web login (a "linked device" on the owner's phone), and the
@@ -185,6 +186,13 @@ def main() -> int:
 
     headed = "--headed" in args
     text = next(a for a in args if a != "--headed")
+    if text == "-":
+        if hasattr(sys.stdin, "reconfigure"):
+            sys.stdin.reconfigure(encoding="utf-8")
+        text = sys.stdin.read().strip()
+    if not text:
+        print("WHATSAPP: FAILED - empty message, nothing sent")
+        return 2
     return send(phone, text, headed)
 
 
