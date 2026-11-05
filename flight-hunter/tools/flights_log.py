@@ -120,36 +120,92 @@ def _format_row(ws, row_idx: int, link: str | None) -> None:
     ws.cell(row=row_idx, column=COL[H_USD]).number_format = "0.000"
 
 
+def _norm(header) -> str:
+    text = str(header or "").strip().lower().replace("ץ", "צ")
+    return re.sub(r"[\s'\"׳״`]", "", text)
+
+
+def _match_header(header) -> str | None:
+    """Map a column name from an older or hand-edited table to a current column (None = unknown)."""
+    if header in HEADERS:
+        return header
+    norm = _norm(header)
+    for name in HEADERS:
+        if _norm(name) == norm:
+            return name
+    if "דולר" in norm or "usd" in norm:
+        return H_USD
+    if "גריני" in norm or "gmt" in norm or "utc" in norm:
+        return H_GMT
+    return None
+
+
 def _upgrade(path: Path) -> dict:
-    """Rebuild an older-layout table with the current columns, matching columns by name."""
-    old_wb = load_workbook(path)
-    old_ws = old_wb[SHEET] if SHEET in old_wb.sheetnames else old_wb.active
+    """Bring the table to the current column layout, matching columns by name.
+
+    Columns this script does not know (e.g. added by hand) are kept, after the known columns.
+    Other sheets in the workbook are left untouched. A backup copy is saved first.
+    """
+    wb = load_workbook(path)
+    old_ws = wb[SHEET] if SHEET in wb.sheetnames else wb.worksheets[0]
     old_headers = [c.value for c in old_ws[1]]
-    if old_headers == HEADERS:
+    if old_headers[: len(HEADERS)] == HEADERS:
         return {"upgraded": False}
 
     backup = path.with_name(f"flights_backup_{datetime.now(TZ).strftime('%Y%m%d_%H%M%S')}.xlsx")
     shutil.copy2(path, backup)
 
-    wb = _new_workbook()
-    ws = wb[SHEET]
-    index = {name: i for i, name in enumerate(old_headers) if name}
+    mapping = {i: _match_header(h) for i, h in enumerate(old_headers) if h not in (None, "")}
+    extras = []
+    for i, target in mapping.items():
+        if target is None and old_headers[i] not in extras:
+            extras.append(old_headers[i])
+    layout = HEADERS + extras
+
+    position = wb.sheetnames.index(old_ws.title)
+    ws = wb.create_sheet("upgrading", position)
+    ws.sheet_view.rightToLeft = True
+    ws.append(layout)
+    _style_header(ws)
+    for col in range(len(HEADERS) + 1, len(layout) + 1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="1F4E78")
+        ws.column_dimensions[cell.column_letter].width = 18
+
     moved = 0
     for old_row in old_ws.iter_rows(min_row=2):
-        values = {name: old_row[i].value for name, i in index.items() if i < len(old_row)}
+        values, link = {}, None
+        for i, target in mapping.items():
+            if i >= len(old_row):
+                continue
+            cell = old_row[i]
+            name = target or old_headers[i]
+            if values.get(name) in (None, ""):
+                values[name] = cell.value
+            if target == H_LINK and cell.hyperlink:
+                link = cell.hyperlink.target
         if all(v in (None, "") for v in values.values()):
             continue
+        if values.get(H_LINK) and not link:
+            link = values[H_LINK]
         if not values.get(H_GMT):
             values[H_GMT] = _gmt_from_israel(values.get(H_DATE), values.get(H_TIME))
-        link = None
-        if H_LINK in index and index[H_LINK] < len(old_row):
-            cell = old_row[index[H_LINK]]
-            link = cell.hyperlink.target if cell.hyperlink else cell.value
-        ws.append([values.get(name) for name in HEADERS])
+        ws.append([values.get(name) for name in layout])
         _format_row(ws, ws.max_row, link)
         moved += 1
+
+    wb.remove(old_ws)
+    ws.title = SHEET
+    wb.active = position
     wb.save(path)
-    return {"upgraded": True, "rows": moved, "backup": backup.name, "old_columns": old_headers}
+    return {
+        "upgraded": True,
+        "rows": moved,
+        "backup": backup.name,
+        "old_columns": old_headers,
+        "kept_extra_columns": extras,
+    }
 
 
 def _load() -> Workbook:
